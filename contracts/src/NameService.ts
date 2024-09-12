@@ -14,11 +14,13 @@ import {
   UInt64,
   AccountUpdate,
 } from 'o1js';
+import { PackedStringFactory } from './o1js-pack/PackedString.js';
 
-export {  Mina, NetworkId, PrivateKey, Experimental, Field, UInt64 };
+export { NameService, NameRecord, offchainState, StateProof, Name, Mina, NetworkId, PrivateKey, Experimental, Field, UInt64 };
 const { OffchainState } = Experimental;
 
-export class NameRecord extends Struct({
+class Name extends PackedStringFactory(31) {}
+class NameRecord extends Struct({
   mina_address: PublicKey,
   avatar: Field,
   url: Field,
@@ -38,7 +40,7 @@ class AdminChangedEvent extends Struct({
   new_admin: PublicKey,
 }) {}
 
-export const offchainState = OffchainState(
+const offchainState = OffchainState(
   {
     registry: OffchainState.Map(Field, NameRecord),
     premium: OffchainState.Field(UInt64),
@@ -46,9 +48,9 @@ export const offchainState = OffchainState(
   { logTotalCapacity: 10, maxActionsPerProof: 5 }
 );
 
-export class StateProof extends offchainState.Proof {}
+class StateProof extends offchainState.Proof {}
 
-export class NameService extends SmartContract {
+class NameService extends SmartContract {
   @state(OffchainState.Commitments) offchainState = offchainState.commitments();
   @state(PublicKey) admin = State<PublicKey>();
   @state(Bool) paused = State<Bool>();
