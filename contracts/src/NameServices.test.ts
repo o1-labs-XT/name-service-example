@@ -1,14 +1,12 @@
-import { AccountUpdate, Field, Mina, PrivateKey, PublicKey, UInt64 } from 'o1js';
-// import { beforeAll, beforeEach, describe, it } from 'vitest';
-import { Name, NameRecord, NameService, offchainState } from './NameService.js';
+import { AccountUpdate, Experimental, fetchAccount, Field, Mina, PrivateKey, PublicKey, UInt64 } from 'o1js';
+import { beforeAll, beforeEach, describe, it, expect } from 'vitest';
+import { createOffChainState, Name, NameRecord, NameService } from './NameService.js';
 
 describe('NameService', () => {
     let sender: {address: PublicKey, key: PrivateKey};
-    const {keys, addresses } = randomAccounts('contract', 'user1', 'user2');
-    const contract = { key: keys.contract, address: addresses.contract };
-    const user1 = { key: keys.user1, address: addresses.user1 };
-    const user2 = { key: keys.user2, address: addresses.user2 };
-    const nameService = new NameService(contract.address);
+    let nameService: NameService;
+    let addresses: Record<string, PublicKey>;
+    let keys: Record<string, PrivateKey>;
     
     beforeAll(async () => {
         const Local = await Mina.LocalBlockchain({proofsEnabled: false});
@@ -17,7 +15,27 @@ describe('NameService', () => {
     });
 
     beforeEach(async () => {
+        const {keys: _keys, addresses: _addresses } = randomAccounts('contract', 'user1', 'user2');
+        keys = _keys;
+        addresses = _addresses;
+        nameService = new NameService(addresses.contract);
         await testSetup(nameService, sender, addresses, keys);
+    });
+
+    describe('#set_premium', () => {
+        it('updates the premium', async () => {
+            const newPremium = UInt64.from(5);
+            const setPremiumTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
+                await nameService.set_premium(newPremium);
+            });
+            setPremiumTx.sign([sender.key]);
+            await setPremiumTx.prove();
+            await setPremiumTx.send().wait();
+
+            await settle(nameService, sender);
+
+            expect((await nameService.premium_rate()).toString()).toEqual('5');
+        });
     });
 
     describe('#register_name', () => {
@@ -65,10 +83,13 @@ function randomAccounts<K extends string>(
   }
   
 async function testSetup(nameService: NameService, sender: {address: PublicKey, key: PrivateKey}, addresses: Record<string, PublicKey>, keys: Record<string, PrivateKey>) {
+    const offchainState = createOffChainState();
+    offchainState.setContractInstance(nameService);
     const deployTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
         AccountUpdate.fundNewAccount(sender.address);
         nameService.deploy();
         nameService.init();
+        nameService.setOffchainState(offchainState);
     });
     await deployTx.prove();
     deployTx.sign([sender.key, keys.contract]);
@@ -82,7 +103,6 @@ async function testSetup(nameService: NameService, sender: {address: PublicKey, 
     fundTx.sign([sender.key]);
     await fundTx.send().wait();
 
-    offchainState.setContractInstance(nameService);
     
     const initTx = await Mina.transaction({sender: sender.address, fee: 1e9}, async () => {
         await nameService.set_premium(UInt64.from(10));
@@ -95,10 +115,10 @@ async function testSetup(nameService: NameService, sender: {address: PublicKey, 
 }
 
 async function settle(nameService: NameService, sender: {address: PublicKey, key: PrivateKey}) {
-    const premiumSettlementProof = await offchainState.createSettlementProof();
+    const settlementProof = await nameService.localOffchainState.createSettlementProof();
 
     const settleTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
-        await nameService.settle(premiumSettlementProof);
+        await nameService.settle(settlementProof);
     });
     settleTx.sign([sender.key]);
     await settleTx.prove();
