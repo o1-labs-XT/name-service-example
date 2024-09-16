@@ -77,8 +77,6 @@ class NameService extends SmartContract {
   @state(PublicKey) admin = State<PublicKey>();
   @state(Bool) paused = State<Bool>();
 
-  localOffchainState: NameServiceOffchainState;
-
   events = {
     pause_toggle_event: PauseToggleEvent,
     admin_changed_event: AdminChangedEvent,
@@ -90,8 +88,6 @@ class NameService extends SmartContract {
   }
 
   async setOffchainState(offchainState: NameServiceOffchainState) {
-    offchainState.setContractInstance(this);
-    this.localOffchainState = offchainState;
   }
 
   /**
@@ -101,7 +97,7 @@ class NameService extends SmartContract {
    */
   @method
   async settle(proof: StateProof) {
-    await this.localOffchainState.settle(proof);
+    await offchainState.settle(proof);
   }
 
   /**
@@ -117,12 +113,12 @@ class NameService extends SmartContract {
    *
    */
   @method async register_name(name: Field, record: NameRecord) {
-    (await this.localOffchainState.fields.registry.get(name)).isSome.assertFalse(); // do we need this?
+    (await offchainState.fields.registry.get(name)).isSome.assertFalse(); // do we need this?
     let premium = await this.premium_rate();
     const sender = this.sender.getAndRequireSignature();
     const payment_update = AccountUpdate.createSigned(sender);
     payment_update.send({ to: this.address, amount: premium });
-    this.localOffchainState.fields.registry.update(name, {
+    offchainState.fields.registry.update(name, {
       from: undefined,
       to: record,
     });
@@ -140,11 +136,11 @@ class NameService extends SmartContract {
    */
   @method async set_record(name: Field, new_record: NameRecord) {
     let current_record = (
-      await this.localOffchainState.fields.registry.get(name)
+      await offchainState.fields.registry.get(name)
     ).assertSome('this name is not owned');
     const sender = this.sender.getAndRequireSignature();
     current_record.mina_address.assertEquals(sender);
-    this.localOffchainState.fields.registry.update(name, {
+    offchainState.fields.registry.update(name, {
       from: current_record,
       to: new_record,
     });
@@ -162,7 +158,7 @@ class NameService extends SmartContract {
    */
   @method async transfer_name_ownership(name: Field, new_owner: PublicKey) {
     let current_record = (
-      await this.localOffchainState.fields.registry.get(name)
+      await offchainState.fields.registry.get(name)
     ).assertSome('this name is not owned');
     const sender = this.sender.getAndRequireSignature();
     current_record.mina_address.assertEquals(sender);
@@ -171,7 +167,7 @@ class NameService extends SmartContract {
       avatar: current_record.avatar,
       url: current_record.url,
     });
-    this.localOffchainState.fields.registry.update(name, {
+    offchainState.fields.registry.update(name, {
       from: current_record,
       to: new_record,
     });
@@ -182,7 +178,7 @@ class NameService extends SmartContract {
    * @returns owner of given name
    */
   @method.returns(PublicKey) async owner_of(name: Field) {
-    return (await this.localOffchainState.fields.registry.get(name)).assertSome(
+    return (await offchainState.fields.registry.get(name)).assertSome(
       'this name is not owned'
     ).mina_address;
   }
@@ -192,7 +188,7 @@ class NameService extends SmartContract {
    * @returns full record associated with given name
    */
   @method.returns(NameRecord) async resolve_name(name: Field) {
-    return (await this.localOffchainState.fields.registry.get(name)).assertSome(
+    return (await offchainState.fields.registry.get(name)).assertSome(
       'this name is not owned'
     );
   }
@@ -201,7 +197,7 @@ class NameService extends SmartContract {
    * @returns the current premium required to register a new name
    */
   @method.returns(UInt64) async premium_rate() {
-    return (await this.localOffchainState.fields.premium.get()).assertSome(
+    return (await offchainState.fields.premium.get()).assertSome(
       'premium is not initialized'
     );
   }
@@ -231,8 +227,8 @@ class NameService extends SmartContract {
    * @emits PremiumChangedEvent
    */
   @method async set_premium(new_premimum: UInt64) {
-    let current_premium = await this.localOffchainState.fields.premium.get();
-    this.localOffchainState.fields.premium.update({
+    let current_premium = await offchainState.fields.premium.get();
+    offchainState.fields.premium.update({
       from: current_premium,
       to: new_premimum,
     });
