@@ -17,7 +17,7 @@ import {
 } from 'o1js';
 import { PackedStringFactory } from './o1js-pack/PackedString.js';
 
-export { NameService, NameRecord, StateProof, Name, Mina, offchainState, type NameServiceOffchainState, createOffChainState, NetworkId, PrivateKey, Experimental, Field, UInt64 };
+export { NameService, NameRecord, StateProof, Name, Mina, offchainState, type NameServiceOffchainState, NetworkId, PrivateKey, Experimental, Field, UInt64 };
 const { OffchainState, OffchainStateCommitments} = Experimental;
 
 class Name extends PackedStringFactory(31) {}
@@ -59,18 +59,8 @@ const offchainState = OffchainState(
 
 type NameServiceOffchainState = typeof offchainState;
 
-function createOffChainState(): NameServiceOffchainState {
-  return OffchainState(
-    {
-      registry: OffchainState.Map(Field, NameRecord),
-      premium: OffchainState.Field(UInt64),
-    },
-    { logTotalCapacity: 10, maxActionsPerProof: 5 }
-  );
-}
 
-
-class StateProof extends createOffChainState().Proof {}
+class StateProof extends offchainState.Proof {}
 
 class NameService extends SmartContract {
   @state(OffchainState.Commitments) offchainState = offchainState.commitments();
