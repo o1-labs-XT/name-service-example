@@ -33,6 +33,14 @@ class NameRecord extends Struct({
       url: Field(0),
     });
   }
+
+  toJSON(): string {
+    return JSON.stringify({
+      mina_address: this.mina_address.toBase58(),
+      avatar: this.avatar.toString(),
+      url: this.url.toString(),
+    });
+  }
 }
 
 class PauseToggleEvent extends Struct({ was_paused: Bool, is_paused: Bool }) {}
@@ -78,6 +86,7 @@ class NameService extends SmartContract {
 
   init() {
     super.init();
+    this.admin.set(this.sender.getAndRequireSignature());
   }
 
   async setOffchainState(offchainState: NameServiceOffchainState) {
