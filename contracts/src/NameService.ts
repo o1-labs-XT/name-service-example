@@ -76,10 +76,7 @@ class NameService extends SmartContract {
     super.init();
     this.admin.set(this.sender.getAndRequireSignature());
   }
-
-  async setOffchainState(offchainState: NameServiceOffchainState) {
-  }
-
+  
   /**
    * Settles settlement proof
    *

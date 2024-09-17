@@ -1,6 +1,6 @@
 import { AccountUpdate, Experimental, fetchAccount, Field, Mina, PrivateKey, PublicKey, UInt64 } from 'o1js';
 import { beforeAll, beforeEach, describe, it, expect } from 'vitest';
-import { createOffChainState, Name, NameRecord, NameService } from './NameService.js';
+import { Name, NameRecord, NameService, offchainState } from './NameService.js';
 
 let sender: {address: PublicKey, key: PrivateKey};
 let nameService: NameService;
@@ -12,13 +12,12 @@ describe('NameService', () => {
         const Local = await Mina.LocalBlockchain({proofsEnabled: false});
         Mina.setActiveInstance(Local);
         sender = {address: Local.testAccounts[0].key.toPublicKey(), key: Local.testAccounts[0].key};
-    });
-    
-    beforeEach(async () => {
+
         const {keys: _keys, addresses: _addresses } = randomAccounts('contract', 'user1', 'user2');
         keys = _keys;
         addresses = _addresses;
         nameService = new NameService(addresses.contract);
+        offchainState.setContractInstance(nameService);
         await testSetup(nameService, sender, addresses, keys);
     });
 
@@ -40,7 +39,7 @@ describe('NameService', () => {
 
     describe('#register_name', () => {
         it('registers a name', async () => {
-            const stringName = 'o1Labs';
+            const stringName = 'o1Labs001';
             const stringUrl = 'o1Labs.org';
             const name = Name.fromString(stringName);
             const nr = new NameRecord({
@@ -67,7 +66,7 @@ describe('NameService', () => {
 
     describe('#set_record', () => {
         it('updates the record for a name', async () => {
-            const stringName = 'o1Labs';
+            const stringName = 'o1Labs002';
             const stringUrl = 'o1Labs.org';
             const name = Name.fromString(stringName);
             const nr = new NameRecord({
@@ -104,9 +103,9 @@ describe('NameService', () => {
     describe('#transfer_name_ownership', () => {
         let name: Name;
         let nr: NameRecord;
-
-        beforeEach(async () => {
-            const stringName = 'o1Labs';
+        
+        it('transfers name ownership for a name it controls', async () => {
+            const stringName = 'o1Labs003';
             const stringUrl = 'o1Labs.org';
             name = Name.fromString(stringName);
             nr = new NameRecord({
@@ -114,9 +113,6 @@ describe('NameService', () => {
                 avatar: Field(0),
                 url: Name.fromString(stringUrl).packed
             });
-        });
-        
-        it('transfers name ownership for a name it controls', async () => {
             await registerName(name, nr, nameService, sender);
 
             const transferTx = await Mina.transaction({sender: addresses.user1, fee: 1e5}, async () => {
@@ -131,6 +127,14 @@ describe('NameService', () => {
         });
 
         it('fails to transfer name ownership for a name it does not control', async () => {
+            const stringName = 'o1Labs004';
+            const stringUrl = 'o1Labs.org';
+            name = Name.fromString(stringName);
+            nr = new NameRecord({
+                mina_address: addresses.user1,
+                avatar: Field(0),
+                url: Name.fromString(stringUrl).packed
+            });
             await registerName(name, nr, nameService, sender);
 
             await expect((Mina.transaction({sender: addresses.user2, fee: 1e5}, async () => {
@@ -139,6 +143,14 @@ describe('NameService', () => {
         });
 
         it('fails to transfer a name that it owns but has not yet bees settled', async () => {
+            const stringName = 'o1Labs005';
+            const stringUrl = 'o1Labs.org';
+            name = Name.fromString(stringName);
+            nr = new NameRecord({
+                mina_address: addresses.user1,
+                avatar: Field(0),
+                url: Name.fromString(stringUrl).packed
+            });
             const registerTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
                 await nameService.register_name(name.packed, nr); // nr 1 is associated with user1
             });
@@ -166,7 +178,7 @@ describe('NameService', () => {
 
     describe('#owner_of', () => {
         it('returns the owner of a name', async () => {
-            const stringName = 'o1Labs';
+            const stringName = 'o1Labs006';
             const name = Name.fromString(stringName);
             const nr = new NameRecord({
                 mina_address: addresses.user1,
@@ -182,7 +194,7 @@ describe('NameService', () => {
 
     describe('#resolve_name', () => {
         it('returns the full record associated with a name', async () => {
-            const stringName = 'o1Labs';
+            const stringName = 'o1Labs007';
             const stringUrl = 'o1Labs.org';
             const name = Name.fromString(stringName);
             const nr = new NameRecord({
@@ -199,14 +211,14 @@ describe('NameService', () => {
 
     describe('#settle (with multiple transactions)', () => {
         it('registers multiple names from different users', async () => {
-            const name1 = Name.fromString('o1Labs');
+            const name1 = Name.fromString('o1Labs008');
             const nr1 = new NameRecord({
                 mina_address: addresses.user1,
                 avatar: Field(0),
                 url: Name.fromString('o1Labs.org').packed
             });
 
-            const name2 = Name.fromString('o1Labs2');
+            const name2 = Name.fromString('o1Labs2001');
             const nr2 = new NameRecord({
                 mina_address: addresses.user2,
                 avatar: Field(0),
@@ -254,13 +266,21 @@ function randomAccounts<K extends string>(
   }
   
 async function testSetup(nameService: NameService, sender: {address: PublicKey, key: PrivateKey}, addresses: Record<string, PublicKey>, keys: Record<string, PrivateKey>) {
-    const offchainState = createOffChainState();
-    offchainState.setContractInstance(nameService);
+    /**
+     * Currently this test setup runs once before all tests.
+     * Ideally it would run before each test to create a fresh instance of all artifacts.
+     * Since `offchainState` is a singleton instance deeply integrated with the contract,
+     * we cannot deploy different instances of the contract with different offchain states
+     * to test.
+     * 
+     * TODO: Decouple instances of `offchainState` from the compiled circuit.
+     * 
+     */
+
     const deployTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
         AccountUpdate.fundNewAccount(sender.address);
         nameService.deploy();
         nameService.init();
-        nameService.setOffchainState(offchainState);
     });
     await deployTx.prove();
     deployTx.sign([sender.key, keys.contract]);
@@ -297,7 +317,7 @@ async function registerName(name: Name, nr: NameRecord, nameService: NameService
 }
 
 async function settle(nameService: NameService, sender: {address: PublicKey, key: PrivateKey}) {
-    const settlementProof = await nameService.localOffchainState.createSettlementProof();
+    const settlementProof = await offchainState.createSettlementProof();
 
     const settleTx = await Mina.transaction({sender: sender.address, fee: 1e5}, async () => {
         await nameService.settle(settlementProof);

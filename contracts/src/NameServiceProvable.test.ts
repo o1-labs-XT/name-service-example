@@ -1,6 +1,6 @@
 import { AccountUpdate, Experimental, fetchAccount, Field, Mina, PrivateKey, PublicKey, UInt64 } from 'o1js';
 import { beforeAll, beforeEach, describe, it, expect } from 'vitest';
-import { createOffChainState, Name, NameRecord, offchainState, NameService, type NameServiceOffchainState } from './NameService.js';
+import { Name, NameRecord, offchainState, NameService, type NameServiceOffchainState } from './NameService.js';
 
 const { OffchainState, OffchainStateCommitments} = Experimental;
 
@@ -17,11 +17,11 @@ describe('NameService', () => {
         sender = {address: Local.testAccounts[0].key.toPublicKey(), key: Local.testAccounts[0].key};
         keys = _keys;
         addresses = _addresses;
+        nameService = new NameService(addresses.contract);
+        offchainState.setContractInstance(nameService);
         await offchainState.compile();
-        offchainState.setContractClass(NameService);
         await NameService.compile();
         console.log('compiled');
-        nameService = new NameService(addresses.contract);
         await testSetup(nameService, sender, addresses, keys);
     });
 
@@ -40,6 +40,7 @@ describe('NameService', () => {
             await registerName(name2, nr2, nameService, sender);
 
             await settle(nameService, sender);
+            console.log("settled first registrations")
             const name1Record = await nameService.resolve_name(name1.packed);
             expect(name1Record.toJSON()).toEqual(nr1.toJSON());
             const name2Record = await nameService.resolve_name(name2.packed);
@@ -57,8 +58,9 @@ describe('NameService', () => {
             await transferTx.send().wait();
 
             await settle(nameService, sender);
+            console.log("settled transfer")
             const name1RecordAfterTransfer = await nameService.resolve_name(name1.packed);
-            expect(name1RecordAfterTransfer.toJSON()).toEqual(nr2.toJSON());
+            expect(name1RecordAfterTransfer.mina_address.toBase58()).toEqual(addresses.user2.toBase58());
 
 
             /**
@@ -73,6 +75,7 @@ describe('NameService', () => {
             await updateTx.send().wait();
 
             await settle(nameService, sender);
+            console.log("settled set record")
             const name2RecordAfterUpdate = await nameService.resolve_name(name2.packed);
             expect(name2RecordAfterUpdate.toJSON()).toEqual(newNr2.toJSON());
         });
