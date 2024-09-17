@@ -1,7 +1,7 @@
 import { Field, Mina, PrivateKey, PublicKey } from 'o1js';
 import { beforeAll, describe, it, expect } from 'vitest';
-import { Name, NameRecord, offchainState, NameService } from './NameService.js';
-import { randomAccounts, registerName, settle, testSetup } from './test/utils.js';
+import { Name, NameRecord, offchainState, NameService } from '../NameService.js';
+import { randomAccounts, registerName, settle, testSetup } from './utils.js';
 
 let sender: {address: PublicKey, key: PrivateKey};
 let nameService: NameService;
