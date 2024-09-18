@@ -13,12 +13,24 @@ import {
   Bool,
   UInt64,
   AccountUpdate,
-  
 } from 'o1js';
 import { PackedStringFactory } from './o1js-pack/PackedString.js';
 
-export { NameService, NameRecord, StateProof, Name, Mina, offchainState, type NameServiceOffchainState, NetworkId, PrivateKey, Experimental, Field, UInt64 };
-const { OffchainState, OffchainStateCommitments} = Experimental;
+export {
+  NameService,
+  NameRecord,
+  StateProof,
+  Name,
+  Mina,
+  offchainState,
+  type NameServiceOffchainState,
+  NetworkId,
+  PrivateKey,
+  Experimental,
+  Field,
+  UInt64,
+};
+const { OffchainState, OffchainStateCommitments } = Experimental;
 
 class Name extends PackedStringFactory(31) {}
 class NameRecord extends Struct({
@@ -59,7 +71,6 @@ const offchainState = OffchainState(
 
 type NameServiceOffchainState = typeof offchainState;
 
-
 class StateProof extends offchainState.Proof {}
 
 class NameService extends SmartContract {
@@ -76,7 +87,7 @@ class NameService extends SmartContract {
     super.init();
     this.admin.set(this.sender.getAndRequireSignature());
   }
-  
+
   /**
    * Settles settlement proof
    *
