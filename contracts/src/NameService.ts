@@ -14,7 +14,8 @@ import {
   UInt64,
   AccountUpdate,
 } from 'o1js';
-import { PackedStringFactory } from './o1js-pack/PackedString.js';
+import { PackedStringFactory } from 'o1js-pack';
+// import { PackedStringFactory } from './o1js-pack/PackedString.js';
 
 export {
   NameService,

@@ -142,10 +142,7 @@ describe('NameService', () => {
       const transferTx = await Mina.transaction(
         { sender: addresses.user1, fee: 1e5 },
         async () => {
-          await nameService.transfer_name_ownership(
-            name,
-            addresses.user2
-          );
+          await nameService.transfer_name_ownership(name, addresses.user2);
         }
       );
       transferTx.sign([keys.user1]);
@@ -171,10 +168,7 @@ describe('NameService', () => {
 
       await expect(
         Mina.transaction({ sender: addresses.user2, fee: 1e5 }, async () => {
-          await nameService.transfer_name_ownership(
-            name,
-            addresses.user1
-          );
+          await nameService.transfer_name_ownership(name, addresses.user1);
         })
       ).rejects.toThrow();
     });
@@ -200,10 +194,7 @@ describe('NameService', () => {
 
       await expect(
         Mina.transaction({ sender: addresses.user1, fee: 1e5 }, async () => {
-          await nameService.transfer_name_ownership(
-            name,
-            addresses.user2
-          ); // user1 tries to transfer name to user2
+          await nameService.transfer_name_ownership(name, addresses.user2); // user1 tries to transfer name to user2
         })
       ).rejects.toThrow();
 
@@ -212,10 +203,7 @@ describe('NameService', () => {
       const transferTx = await Mina.transaction(
         { sender: addresses.user1, fee: 1e5 },
         async () => {
-          await nameService.transfer_name_ownership(
-            name,
-            addresses.user2
-          );
+          await nameService.transfer_name_ownership(name, addresses.user2);
         }
       );
       transferTx.sign([keys.user1]);
